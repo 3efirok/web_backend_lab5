@@ -1,4 +1,5 @@
 const fs = require('node:fs');
+const http = require('node:http');
 const { program } = require('commander');
 
 program
@@ -22,3 +23,15 @@ if (!fs.existsSync(options.cache)) {
 console.log(`Host: ${options.host}`);
 console.log(`Port: ${options.port}`);
 console.log(`Cache directory: ${options.cache}`);
+
+const host = options.host;
+const port = Number(options.port);
+
+const server = http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('Server is running');
+});
+
+server.listen(port, host, () => {
+  console.log(`Server started at http://${host}:${port}`);
+});
