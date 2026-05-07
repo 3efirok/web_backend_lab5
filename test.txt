@@ -1,0 +1,29 @@
+# Manual tests for the caching proxy server (Lab 5)
+#
+# Start the server in another terminal:
+#   npm run dev -- -h 127.0.0.1 -p 8080 -c cache
+
+# --- GET: file is present in cache ---
+# Put a sample JPEG into the cache first, e.g. download any small jpg:
+#   curl -o cache/200.jpg https://http.cat/200.jpg
+# Then:
+curl -i http://127.0.0.1:8080/200
+# Expected: HTTP/1.1 200 OK, Content-Type: image/jpeg, body is the JPEG bytes.
+# To save the response body to disk:
+curl -s -o /tmp/got-200.jpg -w "%{http_code}\n" http://127.0.0.1:8080/200
+
+# --- GET: file is NOT in cache ---
+# Make sure the file is missing (e.g. for code 404):
+#   rm -f cache/404.jpg
+curl -i http://127.0.0.1:8080/404
+# Expected: HTTP/1.1 404 Not Found, body: Not Found
+
+# --- Validation: empty / non-numeric code ---
+curl -i http://127.0.0.1:8080/
+curl -i http://127.0.0.1:8080/abc
+# Expected: HTTP/1.1 400 Bad Request
+
+# --- Method not allowed (GET-only for now) ---
+curl -i -X POST http://127.0.0.1:8080/200
+curl -i -X DELETE http://127.0.0.1:8080/200
+# Expected: HTTP/1.1 405 Method Not Allowed
