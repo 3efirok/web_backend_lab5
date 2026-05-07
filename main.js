@@ -95,6 +95,20 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === 'DELETE') {
+    try {
+      await fs.promises.unlink(filePath);
+      sendText(res, 200, 'OK');
+    } catch (err) {
+      if (err.code === 'ENOENT') {
+        sendText(res, 404, 'Not Found');
+        return;
+      }
+      sendText(res, 500, 'Internal Server Error');
+    }
+    return;
+  }
+
   sendText(res, 405, 'Method Not Allowed');
 });
 
