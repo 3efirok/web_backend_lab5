@@ -2,6 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const http = require('node:http');
 const { program } = require('commander');
+const superagent = require('superagent');
 
 program
   .helpOption('--help', 'display help')
@@ -73,13 +74,28 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'GET') {
     try {
       const image = await fs.promises.readFile(filePath);
+      console.log(`Cache hit: ${code}`);
       sendImage(res, image, 200);
+      return;
     } catch (err) {
-      if (err.code === 'ENOENT') {
-        sendText(res, 404, 'Not Found');
+      if (err.code !== 'ENOENT') {
+        sendText(res, 500, 'Internal Server Error');
         return;
       }
-      sendText(res, 500, 'Internal Server Error');
+    }
+
+    console.log(`Cache miss: ${code}`);
+    try {
+      const response = await superagent
+        .get(`https://http.cat/${code}`)
+        .buffer(true)
+        .parse(superagent.parse.image);
+      const imageBuffer = response.body;
+      await fs.promises.writeFile(filePath, imageBuffer);
+      console.log(`Saved to cache: ${code}`);
+      sendImage(res, imageBuffer, 200);
+    } catch (err) {
+      sendText(res, 404, 'Not Found');
     }
     return;
   }

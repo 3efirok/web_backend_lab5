@@ -3,19 +3,20 @@
 # Start the server in another terminal:
 #   npm run dev -- -h 127.0.0.1 -p 8080 -c cache
 
-# --- GET: file is present in cache ---
-# Put a sample JPEG into the cache first, e.g. download any small jpg:
-#   curl -o cache/200.jpg https://http.cat/200.jpg
-# Then:
-curl -i http://127.0.0.1:8080/200
-# Expected: HTTP/1.1 200 OK, Content-Type: image/jpeg, body is the JPEG bytes.
-# To save the response body to disk:
-curl -s -o /tmp/got-200.jpg -w "%{http_code}\n" http://127.0.0.1:8080/200
+# --- GET: cache miss → proxy fetch from http.cat, then save to cache ---
+# Start with an empty cache (rm -rf cache && mkdir cache).
+curl -s -o /tmp/got-200.jpg -w "%{http_code} %{content_type} size=%{size_download}\n" http://127.0.0.1:8080/200
+# Expected: 200 image/jpeg, server log: "Cache miss: 200" then "Saved to cache: 200".
+# After this call, cache/200.jpg exists.
 
-# --- GET: file is NOT in cache ---
-# Make sure the file is missing (e.g. for code 404):
-#   rm -f cache/404.jpg
-curl -i http://127.0.0.1:8080/404
+# --- GET: cache hit on the second call (no http.cat request) ---
+curl -s -o /tmp/got-200-again.jpg -w "%{http_code} %{content_type} size=%{size_download}\n" http://127.0.0.1:8080/200
+# Expected: 200 image/jpeg, server log: "Cache hit: 200".
+# /tmp/got-200.jpg and /tmp/got-200-again.jpg must be byte-identical:
+cmp -s /tmp/got-200.jpg /tmp/got-200-again.jpg && echo "identical" || echo "different"
+
+# --- GET: code that does not exist on http.cat → 404 ---
+curl -i http://127.0.0.1:8080/999
 # Expected: HTTP/1.1 404 Not Found, body: Not Found
 
 # --- Validation: empty / non-numeric code ---
