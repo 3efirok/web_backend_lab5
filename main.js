@@ -51,6 +51,15 @@ function sendImage(res, imageBuffer, statusCode = 200) {
   res.end(imageBuffer);
 }
 
+function readRequestBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    req.on('data', (chunk) => chunks.push(chunk));
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
+  });
+}
+
 const server = http.createServer(async (req, res) => {
   const code = getStatusCodeFromUrl(req.url);
 
@@ -59,23 +68,34 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (req.method !== 'GET') {
-    sendText(res, 405, 'Method Not Allowed');
+  const filePath = getCacheFilePath(code);
+
+  if (req.method === 'GET') {
+    try {
+      const image = await fs.promises.readFile(filePath);
+      sendImage(res, image, 200);
+    } catch (err) {
+      if (err.code === 'ENOENT') {
+        sendText(res, 404, 'Not Found');
+        return;
+      }
+      sendText(res, 500, 'Internal Server Error');
+    }
     return;
   }
 
-  const filePath = getCacheFilePath(code);
-
-  try {
-    const image = await fs.promises.readFile(filePath);
-    sendImage(res, image, 200);
-  } catch (err) {
-    if (err.code === 'ENOENT') {
-      sendText(res, 404, 'Not Found');
-      return;
+  if (req.method === 'PUT') {
+    try {
+      const body = await readRequestBody(req);
+      await fs.promises.writeFile(filePath, body);
+      sendText(res, 201, 'Created');
+    } catch (err) {
+      sendText(res, 500, 'Internal Server Error');
     }
-    sendText(res, 500, 'Internal Server Error');
+    return;
   }
+
+  sendText(res, 405, 'Method Not Allowed');
 });
 
 server.listen(port, host, () => {

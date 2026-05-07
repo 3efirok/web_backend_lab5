@@ -23,7 +23,15 @@ curl -i http://127.0.0.1:8080/
 curl -i http://127.0.0.1:8080/abc
 # Expected: HTTP/1.1 400 Bad Request
 
-# --- Method not allowed (GET-only for now) ---
+# --- PUT: upload a jpg into the cache ---
+# Take any local jpg (e.g. cat.jpg) and upload it under code 200:
+curl -i -X PUT --data-binary "@cat.jpg" http://127.0.0.1:8080/200
+# Expected: HTTP/1.1 201 Created, body: Created
+# Verify the upload by reading it back through GET:
+curl -s -o /tmp/got-200.jpg -w "%{http_code} %{content_type}\n" http://127.0.0.1:8080/200
+# Expected: 200 image/jpeg, and /tmp/got-200.jpg matches cat.jpg byte-for-byte.
+
+# --- Method not allowed (only GET and PUT are implemented) ---
 curl -i -X POST http://127.0.0.1:8080/200
 curl -i -X DELETE http://127.0.0.1:8080/200
 # Expected: HTTP/1.1 405 Method Not Allowed
